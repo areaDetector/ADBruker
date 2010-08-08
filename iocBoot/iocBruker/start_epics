@@ -1,0 +1,3 @@
+#medm -x -macro "P=APEX2:, R=bis1:, I=image1:, ROI=ROI1:" apex2Detector.adl
+../../bin/cygwin-x86/apex2DetectorApp.exe st.cmd
+
