@@ -1,6 +1,6 @@
-/* apex2Detector.cpp
+/* BISDetector.cpp
  *
- * This is a driver for an Apex2 ccd detector.
+ * This is a driver for Bruker Instrument Service (BIS) detectors.
  *
  * Author: Jeff Gebhardt
  *         University of Chicago
@@ -47,33 +47,33 @@
 
 /** Frame type choices */
 typedef enum {
-    Apex2FrameNormal,
-    Apex2FrameDark,
-    Apex2FrameRaw,
-    Apex2FrameDoubleCorrelation
-} Apex2FrameType_t;
+    BISFrameNormal,
+    BISFrameDark,
+    BISFrameRaw,
+    BISFrameDoubleCorrelation
+} BISFrameType_t;
 
 /** Messages to/from BIS */
 #define MAX_MESSAGE_SIZE 512 
 #define MAX_FILENAME_LEN 256
 /** Time to poll when reading from BIS */
 #define ASYN_POLL_TIME .01 
-#define APEX2_POLL_DELAY .01 
+#define BIS_POLL_DELAY .01 
 #define BIS_DEFAULT_TIMEOUT 1.0 
 /** Time between checking to see if .SFRM file is complete */
 #define FILE_READ_DELAY .01
 
-#define Apex2SFRMTimeoutString  "SFRM_TIMEOUT"
-#define Apex2NumDarksString     "NUM_DARKS"
-#define Apex2StatusString       "BIS_STATUS"
+#define BISSFRMTimeoutString  "SFRM_TIMEOUT"
+#define BISNumDarksString     "NUM_DARKS"
+#define BISStatusString       "BIS_STATUS"
 
 
-static const char *driverName = "apex2Detector";
+static const char *driverName = "BISDetector";
 
-/** Driver for Bruker Apex2 ccd detector using their BIS server over TCP/IP socket */
-class apex2Detector : public ADDriver {
+/** Driver for Bruker BIS ccd detector using their BIS server over TCP/IP socket */
+class BISDetector : public ADDriver {
 public:
-    apex2Detector(const char *portName, const char *BISCommandPort, const char *BISStatusPort,
+    BISDetector(const char *portName, const char *BISCommandPort, const char *BISStatusPort,
                     int maxBuffers, size_t maxMemory,
                     int priority, int stackSize);
                  
@@ -82,16 +82,16 @@ public:
     virtual void setShutter(int open);
     void report(FILE *fp, int details);
     /* These are new methods */
-    void apex2Task();  /* This should be private but is called from C so must be public */
+    void BISTask();  /* This should be private but is called from C so must be public */
     void statusTask(); /* This should be private but is called from C so must be public */
     epicsEventId stopEventId;   /**< This should be private but is accessed from C, must be public */
  
  protected:
-    int Apex2SFRMTimeout;
-#define FIRST_APEX2_PARAM Apex2SFRMTimeout
-    int Apex2NumDarks;
-    int Apex2Status;
-#define LAST_APEX2_PARAM Apex2Status
+    int BISSFRMTimeout;
+#define FIRST_BIS_PARAM BISSFRMTimeout
+    int BISNumDarks;
+    int BISStatus;
+#define LAST_BIS_PARAM BISStatus
 
  private:                                       
     /* These are the methods that are new to this class */
@@ -108,15 +108,15 @@ public:
     asynUser *pasynUserStatus;
 };
 
-#define NUM_APEX2_PARAMS (&LAST_APEX2_PARAM - &FIRST_APEX2_PARAM + 1)
+#define NUM_BIS_PARAMS (&LAST_BIS_PARAM - &FIRST_BIS_PARAM + 1)
 
 /** This function reads .SFRM files.  It is not intended to be general,
- * it is intended to read the .SFRM files that apex2 creates.  It does not implement under/overflows.  It checks to make sure
+ * it is intended to read the .SFRM files that BIS creates.  It does not implement under/overflows.  It checks to make sure
  * that the creation time of the file is after a start time passed to it, to force it to
  * wait for a new file to be created.
  */
  
-asynStatus apex2Detector::readSFRM(const char *fileName, epicsTimeStamp *pStartTime, double timeout, NDArray *pImage)
+asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTime, double timeout, NDArray *pImage)
 {
     #define lineLen 80
     #define maxLine 95
@@ -309,7 +309,7 @@ printf("Correcting baseline offset pixel %d value=%d\n", i, baselineOffset);
     return(asynSuccess);
 }   
 
-asynStatus apex2Detector::writeBIS(double timeout)
+asynStatus BISDetector::writeBIS(double timeout)
 {
     size_t nwrite, nread;
     int eomReason;
@@ -332,7 +332,7 @@ asynStatus apex2Detector::writeBIS(double timeout)
     return(status);
 }
 
-void apex2Detector::setShutter(int open)
+void BISDetector::setShutter(int open)
 {
     ADShutterMode_t shutterMode;
     double delay;
@@ -375,21 +375,21 @@ void apex2Detector::setShutter(int open)
 /** This function is called when the exposure time timer expires */
 extern "C" {static void timerCallbackC(void *drvPvt)
 {
-    apex2Detector *pPvt = (apex2Detector *)drvPvt;
+    BISDetector *pPvt = (BISDetector *)drvPvt;
     
     epicsEventSignal(pPvt->stopEventId);
 }}
 
 static void statusTaskC(void *drvPvt)
 {
-    apex2Detector *pPvt = (apex2Detector *)drvPvt;
+    BISDetector *pPvt = (BISDetector *)drvPvt;
     
     pPvt->statusTask();
 }
 
 /** This thread reads status strings from the status socket, makes the string available to EPICS, and
   * sends an eveny when it detects acquisition complete, etc. */
-void apex2Detector::statusTask()
+void BISDetector::statusTask()
 {
     int status = asynSuccess;
     char response[MAX_MESSAGE_SIZE];
@@ -408,7 +408,7 @@ void apex2Detector::statusTask()
                                         &nread, &eomReason);
         if (status == asynSuccess) {
             this->lock();
-            setStringParam(Apex2Status, response);
+            setStringParam(BISStatus, response);
             getIntegerParam(ADAcquire, &acquire);
             if (strstr(response, "[INSTRUMENTQUEUE /PROCESSING=0]")) {
                 if (acquire) {
@@ -443,16 +443,16 @@ void apex2Detector::statusTask()
     }
 }
 
-static void apex2TaskC(void *drvPvt)
+static void BISTaskC(void *drvPvt)
 {
-    apex2Detector *pPvt = (apex2Detector *)drvPvt;
+    BISDetector *pPvt = (BISDetector *)drvPvt;
     
-    pPvt->apex2Task();
+    pPvt->BISTask();
 }
 
 /** This thread controls acquisition, reads SFRM files to get the image data, and
   * does the callbacks to send it to higher layers */
-void apex2Detector::apex2Task()
+void BISDetector::BISTask()
 {
     int status = asynSuccess;
     int imageCounter;
@@ -466,7 +466,7 @@ void apex2Detector::apex2Task()
     int numDarks;
     double readSFRMTimeout;
     epicsTimeStamp startTime, currentTime;
-    const char *functionName = "apex2Task";
+    const char *functionName = "BISTask";
     char fullFileName[MAX_FILENAME_LEN];
     char statusMessage[MAX_MESSAGE_SIZE];
     int dims[2];
@@ -498,7 +498,7 @@ void apex2Detector::apex2Task()
         /* Get the exposure parameters */
         getDoubleParam(ADAcquireTime, &acquireTime);
         getIntegerParam(ADShutterMode, (int *)&shutterMode);
-        getDoubleParam(Apex2SFRMTimeout, &readSFRMTimeout);
+        getDoubleParam(BISSFRMTimeout, &readSFRMTimeout);
         
         setIntegerParam(ADStatus, ADStatusAcquire);
 
@@ -510,20 +510,20 @@ void apex2Detector::apex2Task()
         setStringParam(NDFullFileName, fullFileName);
         callParamCallbacks();
         switch (frameType) {
-            case Apex2FrameNormal:
+            case BISFrameNormal:
                 epicsSnprintf(this->toBIS, sizeof(this->toBIS), 
                     "[Scan /Filename=%s /scantime=%f /Rescan=0]", fullFileName, acquireTime);
                 break;
-            case Apex2FrameDark:
-                getIntegerParam(Apex2NumDarks, &numDarks);
+            case BISFrameDark:
+                getIntegerParam(BISNumDarks, &numDarks);
                 epicsSnprintf(this->toBIS, sizeof(this->toBIS), 
                     "[Dark /AddTime=%f /Repetitions=%d]", acquireTime, numDarks);
                 break;
-            case Apex2FrameRaw:
+            case BISFrameRaw:
                 epicsSnprintf(this->toBIS, sizeof(this->toBIS), 
                     "[Scan /Filename=%s /scantime=%f /Rescan=0 /DarkFlood=0]", fullFileName, acquireTime);
                 break;
-            case Apex2FrameDoubleCorrelation:
+            case BISFrameDoubleCorrelation:
                 epicsSnprintf(this->toBIS, sizeof(this->toBIS), 
                     "[Scan /Filename=%s /scantime=%f /Rescan=1]", fullFileName, acquireTime);
                 break;
@@ -546,7 +546,7 @@ void apex2Detector::apex2Task()
         epicsTimerStartDelay(this->timerId, acquireTime);
         while(1) {
             this->unlock();
-            status = epicsEventWaitWithTimeout(this->stopEventId, APEX2_POLL_DELAY);
+            status = epicsEventWaitWithTimeout(this->stopEventId, BIS_POLL_DELAY);
             this->lock();
             if (status == epicsEventWaitOK) {
                 /* The acquisition was stopped before the time was complete */
@@ -582,7 +582,7 @@ void apex2Detector::apex2Task()
         setIntegerParam(ADNumImagesCounter, numImagesCounter);
         callParamCallbacks();
 
-        if (arrayCallbacks && frameType != Apex2FrameDark) {
+        if (arrayCallbacks && frameType != BISFrameDark) {
             /* Get an image buffer from the pool */
             getIntegerParam(ADSizeX, &dims[0]);
             getIntegerParam(ADSizeY, &dims[1]);
@@ -636,7 +636,7 @@ void apex2Detector::apex2Task()
   * For all parameters it sets the value in the parameter library and calls any registered callbacks..
   * \param[in] pasynUser pasynUser structure that encodes the reason and address.
   * \param[in] value Value to write. */
-asynStatus apex2Detector::writeInt32(asynUser *pasynUser, epicsInt32 value)
+asynStatus BISDetector::writeInt32(asynUser *pasynUser, epicsInt32 value)
 {
     int function = pasynUser->reason;
     int adstatus;
@@ -649,7 +649,7 @@ asynStatus apex2Detector::writeInt32(asynUser *pasynUser, epicsInt32 value)
     if (function == ADAcquire) {
         getIntegerParam(ADStatus, &adstatus);
         if (value && (adstatus == ADStatusIdle)) {
-            /* Send an event to wake up the Apex2 task.  */
+            /* Send an event to wake up the BIS task.  */
             epicsEventSignal(this->startEventId);
         } 
         if (!value && (adstatus != ADStatusIdle)) {
@@ -673,7 +673,7 @@ asynStatus apex2Detector::writeInt32(asynUser *pasynUser, epicsInt32 value)
         } 
     } else {
         /* If this parameter belongs to a base class call its method */
-        if (function < FIRST_APEX2_PARAM) status = ADDriver::writeInt32(pasynUser, value);
+        if (function < FIRST_BIS_PARAM) status = ADDriver::writeInt32(pasynUser, value);
     }
             
     /* Do callbacks so higher layers see any changes */
@@ -697,10 +697,10 @@ asynStatus apex2Detector::writeInt32(asynUser *pasynUser, epicsInt32 value)
   * \param[in] fp File pointed passed by caller where the output is written to.
   * \param[in] details If >0 then driver details are printed.
   */
-void apex2Detector::report(FILE *fp, int details)
+void BISDetector::report(FILE *fp, int details)
 {
 
-    fprintf(fp, "Apex2 detector %s\n", this->portName);
+    fprintf(fp, "BIS detector %s\n", this->portName);
     if (details > 0) {
         int nx, ny, dataType;
         getIntegerParam(ADSizeX, &nx);
@@ -713,23 +713,23 @@ void apex2Detector::report(FILE *fp, int details)
     ADDriver::report(fp, details);
 }
 
-extern "C" int apex2DetectorConfig(const char *portName, const char *commandPort, const char *statusPort,
+extern "C" int BISDetectorConfig(const char *portName, const char *commandPort, const char *statusPort,
                                    int maxBuffers, size_t maxMemory,
                                    int priority, int stackSize)
 {
-    new apex2Detector(portName, commandPort, statusPort, maxBuffers, maxMemory,
+    new BISDetector(portName, commandPort, statusPort, maxBuffers, maxMemory,
                         priority, stackSize);
     return(asynSuccess);
 }
 
-/** Constructor for Apex2 driver; most parameters are simply passed to ADDriver::ADDriver.
+/** Constructor for BIS driver; most parameters are simply passed to ADDriver::ADDriver.
   * After calling the base class constructor this method creates a thread to collect the detector data, 
   * and sets reasonable default values for the parameters defined in this class, asynNDArrayDriver, and ADDriver.
   * \param[in] portName The name of the asyn port driver to be created.
   * \param[in] commandPort The name of the asyn port previously created with drvAsynIPPortConfigure to
   *            communicate with BIS.
-  * \param[in] maxSizeX The size of the Apex2 detector in the X direction.
-  * \param[in] maxSizeY The size of the Apex2 detector in the Y direction.
+  * \param[in] maxSizeX The size of the BIS detector in the X direction.
+  * \param[in] maxSizeY The size of the BIS detector in the Y direction.
   * \param[in] portName The name of the asyn port driver to be created.
   * \param[in] maxBuffers The maximum number of NDArray buffers that the NDArrayPool for this driver is 
   *            allowed to allocate. Set this to -1 to allow an unlimited number of buffers.
@@ -738,24 +738,24 @@ extern "C" int apex2DetectorConfig(const char *portName, const char *commandPort
   * \param[in] priority The thread priority for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   */
-apex2Detector::apex2Detector(const char *portName, const char *commandPort, const char *statusPort,
+BISDetector::BISDetector(const char *portName, const char *commandPort, const char *statusPort,
                              int maxBuffers, size_t maxMemory,
                              int priority, int stackSize)
 
-    : ADDriver(portName, 1, NUM_APEX2_PARAMS, maxBuffers, maxMemory,
+    : ADDriver(portName, 1, NUM_BIS_PARAMS, maxBuffers, maxMemory,
                0, 0,             /* No interfaces beyond those set in ADDriver.cpp */
                ASYN_CANBLOCK, 1, /* ASYN_CANBLOCK=1, ASYN_MULTIDEVICE=0, autoConnect=1 */
                priority, stackSize)
 {
     int status = asynSuccess;
     epicsTimerQueueId timerQ;
-    const char *functionName = "apex2Detector";
+    const char *functionName = "BISDetector";
 
-    createParam(Apex2SFRMTimeoutString,  asynParamFloat64, &Apex2SFRMTimeout);
-    createParam(Apex2NumDarksString,     asynParamInt32,   &Apex2NumDarks);
-    createParam(Apex2StatusString,       asynParamOctet,   &Apex2Status);
+    createParam(BISSFRMTimeoutString,  asynParamFloat64, &BISSFRMTimeout);
+    createParam(BISNumDarksString,     asynParamInt32,   &BISNumDarks);
+    createParam(BISStatusString,       asynParamOctet,   &BISStatus);
 
-    /* Create the epicsEvents for signaling to the apex2 task when acquisition starts and stops */
+    /* Create the epicsEvents for signaling to the BIS task when acquisition starts and stops */
     this->startEventId = epicsEventMustCreate(epicsEventEmpty);
     this->stopEventId = epicsEventMustCreate(epicsEventEmpty);
     this->readoutEventId = epicsEventMustCreate(epicsEventEmpty);
@@ -770,7 +770,7 @@ apex2Detector::apex2Detector(const char *portName, const char *commandPort, cons
 
     /* Set some default values for parameters */
     status =  setStringParam (ADManufacturer, "Bruker");
-    status |= setStringParam (ADModel, "Apex2");
+    status |= setStringParam (ADModel, "BIS");
     status |= setIntegerParam(ADMaxSizeX, 4096);
     status |= setIntegerParam(ADMaxSizeY, 4096);
     status |= setIntegerParam(ADSizeX, 0);
@@ -787,10 +787,10 @@ apex2Detector::apex2Detector(const char *portName, const char *commandPort, cons
     }
     
     /* Create the thread that updates the images */
-    status = (epicsThreadCreate("Apex2DetTask",
+    status = (epicsThreadCreate("BISDetTask",
                                 epicsThreadPriorityMedium,
                                 epicsThreadGetStackSize(epicsThreadStackMedium),
-                                (EPICSTHREADFUNC)apex2TaskC,
+                                (EPICSTHREADFUNC)BISTaskC,
                                 this) == NULL);
     if (status) {
         printf("%s:%s epicsThreadCreate failure for image task\n", 
@@ -812,34 +812,34 @@ apex2Detector::apex2Detector(const char *portName, const char *commandPort, cons
 }
 
 /* Code for iocsh registration */
-static const iocshArg apex2DetectorConfigArg0 = {"Port name", iocshArgString};
-static const iocshArg apex2DetectorConfigArg1 = {"BIS port name", iocshArgString};
-static const iocshArg apex2DetectorConfigArg2 = {"Status port name", iocshArgString};
-static const iocshArg apex2DetectorConfigArg3 = {"maxBuffers", iocshArgInt};
-static const iocshArg apex2DetectorConfigArg4 = {"maxMemory", iocshArgInt};
-static const iocshArg apex2DetectorConfigArg5 = {"priority", iocshArgInt};
-static const iocshArg apex2DetectorConfigArg6 = {"stackSize", iocshArgInt};
-static const iocshArg * const apex2DetectorConfigArgs[] =    {&apex2DetectorConfigArg0,
-                                                              &apex2DetectorConfigArg1,
-                                                              &apex2DetectorConfigArg2,
-                                                              &apex2DetectorConfigArg3,
-                                                              &apex2DetectorConfigArg4,
-                                                              &apex2DetectorConfigArg5,
-                                                              &apex2DetectorConfigArg6};
-static const iocshFuncDef configApex2Detector = {"apex2DetectorConfig", 7, apex2DetectorConfigArgs};
-static void configApex2DetectorCallFunc(const iocshArgBuf *args)
+static const iocshArg BISDetectorConfigArg0 = {"Port name", iocshArgString};
+static const iocshArg BISDetectorConfigArg1 = {"BIS port name", iocshArgString};
+static const iocshArg BISDetectorConfigArg2 = {"Status port name", iocshArgString};
+static const iocshArg BISDetectorConfigArg3 = {"maxBuffers", iocshArgInt};
+static const iocshArg BISDetectorConfigArg4 = {"maxMemory", iocshArgInt};
+static const iocshArg BISDetectorConfigArg5 = {"priority", iocshArgInt};
+static const iocshArg BISDetectorConfigArg6 = {"stackSize", iocshArgInt};
+static const iocshArg * const BISDetectorConfigArgs[] =    {&BISDetectorConfigArg0,
+                                                            &BISDetectorConfigArg1,
+                                                            &BISDetectorConfigArg2,
+                                                            &BISDetectorConfigArg3,
+                                                            &BISDetectorConfigArg4,
+                                                            &BISDetectorConfigArg5,
+                                                            &BISDetectorConfigArg6};
+static const iocshFuncDef configBISDetector = {"BISDetectorConfig", 7, BISDetectorConfigArgs};
+static void configBISDetectorCallFunc(const iocshArgBuf *args)
 {
-    apex2DetectorConfig(args[0].sval, args[1].sval, args[2].sval, args[3].ival,  args[4].ival,  
-                        args[5].ival, args[6].ival);
+    BISDetectorConfig(args[0].sval, args[1].sval, args[2].sval, args[3].ival,  args[4].ival,  
+                      args[5].ival, args[6].ival);
 }
 
-static void apex2DetectorRegister(void)
+static void BISDetectorRegister(void)
 {
 
-    iocshRegister(&configApex2Detector, configApex2DetectorCallFunc);
+    iocshRegister(&configBISDetector, configBISDetectorCallFunc);
 }
 
 extern "C" {
-epicsExportRegistrar(apex2DetectorRegister);
+epicsExportRegistrar(BISDetectorRegister);
 }
 
