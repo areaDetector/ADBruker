@@ -39,7 +39,7 @@ asynOctetSetInputEos($(STATUS_PORT), 0, "\n")
 BISDetectorConfig($(PORT), $(COMMAND_PORT), $(STATUS_PORT), 50, 200000000)
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/ADBase.template", "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDFile.template", "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/BIS.template",    "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1,COMMAND_PORT=BIS1")
+dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/BIS.template",    "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1,BIS_PORT=$(COMMAND_PORT)")
 asynSetTraceIOMask($(PORT),0,2)
 #asynSetTraceMask($(PORT),0,255)
 
@@ -52,10 +52,8 @@ dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDStdArrays.template", "P=$(PREFIX),R=i
 
 < ../commonPlugins.cmd
 
-asynSetTraceIOMask($(PORT),0,2)
-#asynSetTraceMask($(PORT),0,255)
-
 iocInit()
 
 # save things every thirty seconds
 create_monitor_set("auto_settings.req", 30,"P=$(PREFIX),D=cam1:")
+
