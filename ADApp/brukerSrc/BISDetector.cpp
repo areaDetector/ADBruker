@@ -2,7 +2,8 @@
  *
  * This is a driver for Bruker Instrument Service (BIS) detectors.
  *
- * Author: Jeff Gebhardt
+ * Original Author: Jeff Gebhardt
+ * Current Author:  Mark Rivers
  *         University of Chicago
  *
  * Created:  March 18, 2010
@@ -15,19 +16,10 @@
  * Created:  June 11, 2008
  */
  
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <math.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <ctype.h>
-#include <fcntl.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <iostream>
-#include <fstream>
 
 #include <epicsTime.h>
 #include <epicsThread.h>
@@ -122,7 +114,7 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     #define maxLine 95
     #define blockLen 512
     #define dataOffset 8
-    int fd=-1;
+    FILE *file=NULL;
     int fileExists=0;
     struct stat statBuff;
     epicsTimeStamp tStart, tCheck;
@@ -142,7 +134,7 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     epicsUInt32 *pOverflows2=NULL;
     epicsUInt16 *pUnderflows=NULL;
     int i;
-    char buffer[lineLen * maxLine];
+    char *buffer=NULL;
     epicsUInt8 *byteBuffer;
     epicsUInt16 *i2Buffer;
     epicsUInt32 *pData = (epicsUInt32 *)pImage->pData;
@@ -153,24 +145,24 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     epicsTimeGetCurrent(&tStart);
     
     while (deltaTime <= timeout) {
-        fd = open(fileName, O_RDONLY, 0);
-        if ((fd >= 0) && (timeout != 0.)) {
+        file = fopen(fileName, "rb");
+        if (file && (timeout != 0.)) {
             fileExists = 1;
             /* The file exists.  Make sure it is a new file, not an old one.
              * We don't do this check if timeout==0 */
-            status = fstat(fd, &statBuff);
+            status = stat(fileName, &statBuff);
             if (status){
                 asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
                     "%s::%s error calling fstat, errno=%d %s\n",
                     driverName, functionName, errno, fileName);
-                close(fd);
+                fclose(file);
                 return(asynError);
             }
             /* We allow up to 10 second clock skew between time on machine running this IOC
              * and the machine with the file system returning modification time */
             if (difftime(statBuff.st_mtime, acqStartTime) > -10) break;
-            close(fd);
-            fd = -1;
+            fclose(file);
+            file = NULL;
         }
         /* Sleep, but check for stop event, which can be used to abort a long acquisition */
         status = epicsEventWaitWithTimeout(this->stopEventId, FILE_READ_DELAY);
@@ -180,7 +172,7 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
         epicsTimeGetCurrent(&tCheck);
         deltaTime = epicsTimeDiffInSeconds(&tCheck, &tStart);
     }
-    if (fd < 0) {
+    if (file == NULL) {
         asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
             "%s::%s timeout waiting for file to be created %s\n",
             driverName, functionName, fileName);
@@ -190,25 +182,28 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
         } 
         return(asynError);
     }
+    /* Allocate the buffer */
+    buffer = (char *)malloc(lineLen * maxLine);
     /* Read the first 3 lines of the header */
-    nBytes = read(fd, buffer, 3*lineLen);
+    nBytes = fread(buffer, 1, 3*lineLen, file);
     offset = 0*lineLen + dataOffset;
     sscanf(buffer+offset, "%d", &format);
     offset = 1*lineLen + dataOffset;
     sscanf(buffer+offset, "%d", &version);
     offset = 2*lineLen + dataOffset;
     sscanf(buffer+offset, "%d", &headerBlocks);
+    free(buffer);
     if ((format != 100) || (version < 11)) {
         asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR, 
             "%s:%s: unsupported format=%d or version=%d\n",
             driverName, functionName, format, version);
-        close(fd);
+        fclose(file);
         return(asynError);
     }
     /* Read the entire header now that we know how big it is */
-    lseek(fd, 0, SEEK_SET);
-    nBytes = read(fd, buffer, headerBlocks*blockLen);
-
+    buffer = (char *)malloc(headerBlocks*blockLen);
+    fseek(file, 0, SEEK_SET);
+    nBytes = fread(buffer, 1, headerBlocks*blockLen, file);
     offset = 20*lineLen + dataOffset;
     sscanf(buffer+offset, "%d%d%d", &numUnderflows, &numOverflows1, &numOverflows2);
     offset = 39*lineLen + dataOffset;
@@ -223,17 +218,18 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     sscanf(buffer+offset, "%d", &longOrder);
     offset = 79*lineLen + dataOffset;
     sscanf(buffer+offset, "%d%d%d%d%d", &numExposures, &bias, &baselineOffset, &orientation, &overscan);
+    free(buffer);
     if ((wordOrder !=0) || (longOrder != 0)) {
         asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR, 
             "%s:%s: unsupported wordOrder=%d or longOrder=%d\n",
             driverName, functionName, wordOrder, longOrder);
-        close(fd);
+        fclose(file);
         return(asynError);
     }
 
     asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW,
         "%s:%s: file=%s, numUnderflows=%d, numOverflows1=%d, numOverflows2=%d, bytesPerPixel=%d, underflowBytesPerPixel=%d, nRows=%d, nCols=%d\n",
-        driverName, fileName, functionName, numUnderflows, numOverflows1, numOverflows2, bytesPerPixel, underflowBytesPerPixel, nRows, nCols);
+        driverName, functionName, fileName, numUnderflows, numOverflows1, numOverflows2, bytesPerPixel, underflowBytesPerPixel, nRows, nCols);
     asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW,
         "%s:%s: numExposures=%d, bias=%d, baselineOffset=%d, orientation=%d, overscan=%d\n",
         driverName, functionName, numExposures, bias, baselineOffset, orientation, overscan);
@@ -244,20 +240,20 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
         case 1:
             nBytes = nPixels * 1;
             byteBuffer = (epicsUInt8 *)malloc(nBytes);
-            nRead = read(fd, byteBuffer, nBytes);
+            nRead = fread(byteBuffer, 1, nBytes, file);
             for (i=0; i<nPixels; i++) pData[i] = byteBuffer[i];
             free(byteBuffer);
             break;
         case 2:
             nBytes = nPixels * 2;
             i2Buffer = (epicsUInt16 *)malloc(nBytes);
-            nRead = read(fd, i2Buffer, nBytes);
+            nRead = fread(i2Buffer, 1, nBytes, file);
             for (i=0; i<nPixels; i++) pData[i] = i2Buffer[i];
             free(i2Buffer);
             break;
         case 4:
             nBytes = nPixels * 4;
-            nRead = read(fd, pData, nBytes);
+            nRead = fread(pData, 1, nBytes, file);
             break;
     }
     if (nRead != nBytes) {
@@ -269,37 +265,34 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     if (numUnderflows > 0) {
         nBytes = ((numUnderflows * underflowBytesPerPixel + 15) / 16) * 16;
         pUnderflows = (epicsUInt16 *)malloc(nBytes);
-        read(fd, pUnderflows, nBytes);
+        fread(pUnderflows, 1, nBytes, file);
     }
     if (numOverflows1 > 0) {
         nBytes = ((numOverflows1 * 2 + 15) / 16) * 16;
         pOverflows1 = (epicsUInt16 *)malloc(nBytes);
-        read(fd, pOverflows1, nBytes);
+        fread(pOverflows1, 1, nBytes, file);
     }    
     if (numOverflows2 > 0) {
         nBytes = ((numOverflows2 * 4 + 15) / 16) * 16;
         pOverflows2 = (epicsUInt32 *)malloc(nBytes);
-        read(fd, pOverflows2, nBytes);
+        fread(pOverflows2, 1, nBytes, file);
     }
-    close(fd);
+    fclose(file);
     if (numUnderflows == -1) baselineOffset = 0;
     for (i=0; i<nPixels; i++) {
         if ((bytesPerPixel == 1) && (pData[i] == 255)) {
             pData[i] = pOverflows1[n1++];
         }
         if ((bytesPerPixel != 4) && (pData[i] == 65535)) {
-printf("Correcting overflow2 pixel %d value=%d, %d/%d\n", i, pOverflows2[n2], n2, numOverflows2);
             pData[i] = pOverflows2[n2++];
         }
         if ((pData[i] == 0)) {
             if (numUnderflows > 0) {
-printf("Correcting underflow1 pixel %d value=%d, %d/%d\n", i, pUnderflows[nu], nu, numUnderflows);
                 pData[i] = pUnderflows[nu++];
             }
-            else printf("0 pixel=%d/%d\n", i, nPixels-1);
+            //else printf("0 pixel=%d/%d\n", i, nPixels-1);
         }
         else if (baselineOffset != 0) {
-printf("Correcting baseline offset pixel %d value=%d\n", i, baselineOffset);
             pData[i] += baselineOffset;
         }
     }
@@ -717,8 +710,10 @@ extern "C" int BISDetectorConfig(const char *portName, const char *commandPort, 
                                    int maxBuffers, size_t maxMemory,
                                    int priority, int stackSize)
 {
-    new BISDetector(portName, commandPort, statusPort, maxBuffers, maxMemory,
+    BISDetector *dummy 
+        = new BISDetector(portName, commandPort, statusPort, maxBuffers, maxMemory,
                         priority, stackSize);
+    dummy = NULL;
     return(asynSuccess);
 }
 
