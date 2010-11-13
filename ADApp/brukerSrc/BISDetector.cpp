@@ -722,10 +722,9 @@ extern "C" int BISDetectorConfig(const char *portName, const char *commandPort, 
   * and sets reasonable default values for the parameters defined in this class, asynNDArrayDriver, and ADDriver.
   * \param[in] portName The name of the asyn port driver to be created.
   * \param[in] commandPort The name of the asyn port previously created with drvAsynIPPortConfigure to
-  *            communicate with BIS.
-  * \param[in] maxSizeX The size of the BIS detector in the X direction.
-  * \param[in] maxSizeY The size of the BIS detector in the Y direction.
-  * \param[in] portName The name of the asyn port driver to be created.
+  *            send commands to BIS.
+  * \param[in] statusPort The name of the asyn port previously created with drvAsynIPPortConfigure to
+  *            receive status information from BIS.
   * \param[in] maxBuffers The maximum number of NDArray buffers that the NDArrayPool for this driver is 
   *            allowed to allocate. Set this to -1 to allow an unlimited number of buffers.
   * \param[in] maxMemory The maximum amount of memory that the NDArrayPool for this driver is 
