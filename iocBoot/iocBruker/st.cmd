@@ -45,7 +45,7 @@ asynSetTraceIOMask($(PORT),0,2)
 
 
 # Create a standard arrays plugin
-NDStdArraysConfigure("apxImage", 5, 0, $(PORT), 0, -1)
+NDStdArraysConfigure("apxImage", 5, 0, $(PORT), 0, 0)
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDPluginBase.template","P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,NDARRAY_PORT=$(PORT),NDARRAY_ADDR=0")
 # This creates a waveform large enough to hold a 4096x4096 image
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDStdArrays.template", "P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,TYPE=Int32,FTVL=LONG,NELEMENTS=16777216")
