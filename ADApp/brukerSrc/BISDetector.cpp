@@ -287,7 +287,7 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
         if ((bytesPerPixel != 4) && (pData[i] == 65535)) {
             pData[i] = pOverflows2[n2++];
         }
-        if ((pData[i] == 0)) {
+        if (pData[i] == 0) {
             if (numUnderflows > 0) {
                 pData[i] = pUnderflows[nu++];
             }
