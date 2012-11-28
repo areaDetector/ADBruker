@@ -100,7 +100,7 @@ public:
     asynUser *pasynUserStatus;
 };
 
-#define NUM_BIS_PARAMS (&LAST_BIS_PARAM - &FIRST_BIS_PARAM + 1)
+#define NUM_BIS_PARAMS ((int)(&LAST_BIS_PARAM - &FIRST_BIS_PARAM + 1))
 
 /** This function reads .SFRM files.  It is not intended to be general,
  * it is intended to read the .SFRM files that BIS creates.  It does not implement under/overflows.  It checks to make sure
@@ -123,7 +123,8 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     int status=-1;
     const char *functionName = "readSFRM";
     int offset, version, format;
-    int nBytes, nPixels, nRead=0;
+    int nPixels;
+    size_t nBytes, nRead=0;
     int headerBlocks;
     int numUnderflows, numOverflows1, numOverflows2;
     int nRows, nCols;
@@ -462,7 +463,8 @@ void BISDetector::BISTask()
     const char *functionName = "BISTask";
     char fullFileName[MAX_FILENAME_LEN];
     char statusMessage[MAX_MESSAGE_SIZE];
-    int dims[2];
+    size_t dims[2];
+    int itemp;
     int arrayCallbacks;
     
     this->lock();
@@ -577,8 +579,8 @@ void BISDetector::BISTask()
 
         if (arrayCallbacks && frameType != BISFrameDark) {
             /* Get an image buffer from the pool */
-            getIntegerParam(ADSizeX, &dims[0]);
-            getIntegerParam(ADSizeY, &dims[1]);
+            getIntegerParam(ADSizeX, &itemp); dims[0] = itemp;
+            getIntegerParam(ADSizeY, &itemp); dims[1] = itemp;
             pImage = this->pNDArrayPool->alloc(2, dims, NDInt32, 0, NULL);
             epicsSnprintf(statusMessage, sizeof(statusMessage), "Reading from File %s", fullFileName);
             setStringParam(ADStatusMessage, statusMessage);
@@ -710,10 +712,8 @@ extern "C" int BISDetectorConfig(const char *portName, const char *commandPort, 
                                    int maxBuffers, size_t maxMemory,
                                    int priority, int stackSize)
 {
-    BISDetector *dummy 
-        = new BISDetector(portName, commandPort, statusPort, maxBuffers, maxMemory,
+    new BISDetector(portName, commandPort, statusPort, maxBuffers, maxMemory,
                         priority, stackSize);
-    dummy = NULL;
     return(asynSuccess);
 }
 
