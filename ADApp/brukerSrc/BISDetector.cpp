@@ -166,7 +166,9 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
             file = NULL;
         }
         /* Sleep, but check for stop event, which can be used to abort a long acquisition */
+        unlock();
         status = epicsEventWaitWithTimeout(this->stopEventId, FILE_READ_DELAY);
+        lock();
         if (status == epicsEventWaitOK) {
             return(asynError);
         }
@@ -329,10 +331,11 @@ asynStatus BISDetector::writeBIS(double timeout)
 void BISDetector::setShutter(int open)
 {
     ADShutterMode_t shutterMode;
+    int itemp;
     double delay;
     double shutterOpenDelay, shutterCloseDelay;
     
-    getIntegerParam(ADShutterMode, (int *)&shutterMode);
+    getIntegerParam(ADShutterMode, &itemp); shutterMode = (ADShutterMode_t)itemp;
     getDoubleParam(ADShutterOpenDelay, &shutterOpenDelay);
     getDoubleParam(ADShutterCloseDelay, &shutterCloseDelay);
 
@@ -492,7 +495,7 @@ void BISDetector::BISTask()
         getIntegerParam(ADFrameType, &frameType);
         /* Get the exposure parameters */
         getDoubleParam(ADAcquireTime, &acquireTime);
-        getIntegerParam(ADShutterMode, (int *)&shutterMode);
+        getIntegerParam(ADShutterMode, &itemp);  shutterMode = (ADShutterMode_t)itemp;
         getDoubleParam(BISSFRMTimeout, &readSFRMTimeout);
         
         setIntegerParam(ADStatus, ADStatusAcquire);
@@ -585,11 +588,7 @@ void BISDetector::BISTask()
             epicsSnprintf(statusMessage, sizeof(statusMessage), "Reading from File %s", fullFileName);
             setStringParam(ADStatusMessage, statusMessage);
             callParamCallbacks();
-            /* We release the mutex when calling readSFRM, because this takes a long time and
-             * we need to allow abort operations to get through */
-            this->unlock(); 
             status = readSFRM(fullFileName, &startTime, acquireTime + readSFRMTimeout, pImage); 
-            this->lock(); 
             /* If there was an error jump to bottom of loop */
             if (status) {
                 setIntegerParam(ADAcquire, 0);
