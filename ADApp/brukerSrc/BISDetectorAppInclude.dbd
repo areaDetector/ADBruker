@@ -1,3 +1,0 @@
-include "BISDetectorSupport.dbd"
-include "commonDriverSupport.dbd"
-include "drvAsynIPPort.dbd"
