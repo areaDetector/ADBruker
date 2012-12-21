@@ -261,8 +261,8 @@ asynStatus BISDetector::readSFRM(const char *fileName, epicsTimeStamp *pStartTim
     }
     if (nRead != nBytes) {
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s:%s: error reading file %s, only read %d/%d bytes\n",
-            driverName, functionName, fileName, nRead, nBytes);
+            "%s:%s: error reading file %s, only read %lu/%lu bytes\n",
+            driverName, functionName, fileName, (unsigned long)nRead, (unsigned long)nBytes);
     }
     /* Read the underflow and overflow tables */
     if (numUnderflows > 0) {
