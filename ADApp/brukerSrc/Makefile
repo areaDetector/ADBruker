@@ -25,6 +25,7 @@ PROD_SRCS_vxWorks += BISDetectorApp_registerRecordDeviceDriver.cpp BISDetectorAp
 PROD_LIBS += BISDetector
 
 include $(TOP)/ADApp/commonDriverMakefile
+$(PROD_NAME)_DBD += drvAsynIPPort.dbd
 
 #=============================
 
