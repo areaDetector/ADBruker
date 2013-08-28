@@ -31,11 +31,12 @@
 #include <epicsMutex.h>
 #include <cantProceed.h>
 #include <iocsh.h>
-#include <epicsExport.h>
 
 #include <asynOctetSyncIO.h>
 
 #include "ADDriver.h"
+
+#include <epicsExport.h>
 
 /** Frame type choices */
 typedef enum {
