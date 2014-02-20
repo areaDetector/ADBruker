@@ -1,7 +1,7 @@
 < envPaths
 errlogInit(20000)
 
-dbLoadDatabase("$(AREA_DETECTOR)/dbd/BISDetectorApp.dbd")
+dbLoadDatabase("$(TOP)/dbd/BISDetectorApp.dbd")
 BISDetectorApp_registerRecordDeviceDriver(pdbbase) 
 
 epicsEnvSet("PREFIX", "BIS:")
@@ -36,21 +36,23 @@ asynOctetSetOutputEos($(COMMAND_PORT), 0, "\n")
 asynOctetSetInputEos($(COMMAND_PORT), 0, "]")
 asynOctetSetInputEos($(STATUS_PORT), 0, "\n")
 
-BISDetectorConfig($(PORT), $(COMMAND_PORT), $(STATUS_PORT), 50, 200000000)
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/ADBase.template", "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDFile.template", "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/BIS.template",    "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1,BIS_PORT=$(COMMAND_PORT)")
+BISDetectorConfig($(PORT), $(COMMAND_PORT), $(STATUS_PORT), 0, 0)
+dbLoadRecords("$(ADCORE)/db/ADBase.template", "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
+dbLoadRecords("$(ADCORE)/db/NDFile.template", "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
+dbLoadRecords("$(ADBRUKER/db/BIS.template",    "P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1,BIS_PORT=$(COMMAND_PORT)")
 asynSetTraceIOMask($(PORT),0,2)
 #asynSetTraceMask($(PORT),0,255)
 
 
 # Create a standard arrays plugin
 NDStdArraysConfigure("apxImage", 5, 0, $(PORT), 0, 0)
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDPluginBase.template","P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,NDARRAY_PORT=$(PORT),NDARRAY_ADDR=0")
+dbLoadRecords("$(ADCORE)/db/NDPluginBase.template","P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,NDARRAY_PORT=$(PORT),NDARRAY_ADDR=0")
 # This creates a waveform large enough to hold a 4096x4096 image
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDStdArrays.template", "P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,TYPE=Int32,FTVL=LONG,NELEMENTS=16777216")
+dbLoadRecords("$(ADCORE)/db/NDStdArrays.template", "P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,TYPE=Int32,FTVL=LONG,NELEMENTS=16777216")
 
-< ../commonPlugins.cmd
+# Load all other plugins using commonPlugins.cmd
+< $(ADCORE)/iocBoot/commonPlugins.cmd
+set_requestfile_path("$(ADBRUKER)/brukerApp/Db")
 
 iocInit()
 
