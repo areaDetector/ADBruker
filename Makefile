@@ -2,10 +2,10 @@
 TOP = .
 include $(TOP)/configure/CONFIG
 DIRS := $(DIRS) configure
-DIRS := $(DIRS) marCCDApp
+DIRS := $(DIRS) brukerApp
 ifeq ($(BUILD_IOCS), YES)
 DIRS := $(DIRS) $(filter-out $(DIRS), $(wildcard iocs))
-iocs_DEPEND_DIRS += marCCDApp
+iocs_DEPEND_DIRS += brukerApp
 endif
 include $(TOP)/configure/RULES_TOP
 
