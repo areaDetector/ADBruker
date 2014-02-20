@@ -30,8 +30,9 @@
   <h2 id="Introduction" style="text-align: left">
     Introduction</h2>
   <p>
-    This is a driver for detectors from <a href="http://www.bruker-axs.com/">Bruker AXS
-    </a>using the Bruker Instrument Server (BIS).</p>
+    This is an <a href="http://www.aps.anl.gov/epics/">EPICS</a> <a href="areaDetector.html">
+      areaDetector</a> driver for detectors from <a href="http://www.bruker-axs.com/">Bruker
+        AXS </a>using the Bruker Instrument Server (BIS).</p>
   <p>
     The interface to the detector is via TCP/IP socket connections to the <b>Bruker Instrument
       Server (BIS)</b> program that Bruker provides. The BIS program must be started
@@ -134,7 +135,7 @@
     It does this by changing the state of pin 3 of the parallel port DB-25 connector
     on the PC. This signal is connected to a shutter control box. Alternatively, if
     ADShutterMode is set to ADShutterModeEPICS, then any EPICS PV can be used to control
-    a shutter.</p>
+    a shutter.
   </p>
   <h2 id="Driver_parameters" style="text-align: left">
     Bruker specific parameters</h2>
