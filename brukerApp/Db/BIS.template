@@ -1,6 +1,9 @@
 # Database for the records specific to the BIS driver
 # Jeff Gebhardt and Mark Rivers
 
+include "ADBase.template"
+include "NDFile.template"
+
 # Timeout waiting for SFRM file.
 record(ao, "$(P)$(R)ReadSFRMTimeout")
 {
