@@ -23,12 +23,12 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
-R2-1
+R2-1 (16-Apr-2015)
 ----
 * Changes for compatibility with ADCore R2-2
 
 
-R2-0
+R2-0 (24-Mar-2014)
 ----
 * Moved the repository to [Github](https://github.com/areaDetector/ADBruker).
 * Re-organized the directory structure to separate the driver library from the example IOC application.
