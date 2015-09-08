@@ -58,7 +58,7 @@ NDStdArraysConfigure("apxImage", 5, 0, $(PORT), 0, 0)
 dbLoadRecords("$(ADCORE)/db/NDStdArrays.template", "P=$(PREFIX),R=image1:,PORT=apxImage,ADDR=0,TIMEOUT=1,NDARRAY_PORT=$(PORT),TYPE=Int32,FTVL=LONG,NELEMENTS=16777216")
 
 # Load all other plugins using commonPlugins.cmd
-< $(ADCORE)/iocBoot/commonPlugins.cmd
+< $(ADEXAMPLE)/iocBoot/commonPlugins.cmd
 set_requestfile_path("$(ADBRUKER)/brukerApp/Db")
 
 iocInit()
